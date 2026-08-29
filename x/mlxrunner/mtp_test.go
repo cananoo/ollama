@@ -279,7 +279,7 @@ func TestAcceptMTPDraftsGreedyAcceptAll(t *testing.T) {
 	current := sampler.Result{Token: mlx.FromValues([]int32{1}, 1)}
 	unpin := pinAcceptInputs(current, candidates)
 	defer unpin()
-	results, accepted, observed, err := spec.accept(&position, current, candidates)
+	results, accepted, observed, err := spec.accept(&position, current, candidates, nil)
 	if err != nil {
 		t.Fatalf("accept: %v", err)
 	}
@@ -315,7 +315,7 @@ func TestAcceptMTPDraftsGreedyMismatch(t *testing.T) {
 	current := sampler.Result{Token: mlx.FromValues([]int32{1}, 1)}
 	unpin := pinAcceptInputs(current, candidates)
 	defer unpin()
-	results, accepted, observed, err := spec.accept(&position, current, candidates)
+	results, accepted, observed, err := spec.accept(&position, current, candidates, nil)
 	if err != nil {
 		t.Fatalf("accept: %v", err)
 	}
@@ -353,7 +353,7 @@ func TestAcceptMTPDraftsGreedyEOS(t *testing.T) {
 	current := sampler.Result{Token: mlx.FromValues([]int32{1}, 1)}
 	unpin := pinAcceptInputs(current, candidates)
 	defer unpin()
-	results, accepted, observed, err := spec.accept(&position, current, candidates)
+	results, accepted, observed, err := spec.accept(&position, current, candidates, nil)
 	if err != nil {
 		t.Fatalf("accept: %v", err)
 	}

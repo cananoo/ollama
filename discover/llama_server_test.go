@@ -39,6 +39,7 @@ func TestLlamaServerDiscovery(t *testing.T) {
 
 	t.Run("parse devices", func(t *testing.T) {
 		type wantDevice struct {
+			id              string
 			name            string
 			library         string
 			totalMiB        uint64
@@ -147,6 +148,24 @@ Available devices:
 				libDirs: []string{"/lib/ollama", "/lib/ollama/cuda_v13"},
 			},
 			{
+				name: "zero-memory pseudo-device does not shift CUDA index",
+				output: `ggml_cuda_init: found 1 CUDA devices (Total VRAM: 16379 MiB):
+  Device 0: NVIDIA GeForce RTX 4060 Ti, compute capability 8.9, VMM: yes, VRAM: 16379 MiB
+system_info: n_threads = 16 | CUDA : ARCHS = 750,800,860,890,900,1000,1030,1100,1200,1210 |
+Available devices:
+  BLAS: OpenBLAS (0 MiB, 0 MiB free)
+  CUDA0: NVIDIA GeForce RTX 4060 Ti (16379 MiB, 14900 MiB free)
+`,
+				libDirs: []string{"/lib/ollama", "/lib/ollama/cuda_v13"},
+				want: []wantDevice{{
+					id:       "0",
+					name:     "CUDA0",
+					library:  "CUDA",
+					totalMiB: 16379,
+					compute:  "8.9",
+				}},
+			},
+			{
 				name: "CUDA device kept by compiled archs",
 				output: `ggml_cuda_init: found 1 CUDA devices (Total VRAM: 16379 MiB):
   Device 0: NVIDIA GeForce RTX 4060 Ti, compute capability 8.9, VMM: yes, VRAM: 16379 MiB
@@ -249,6 +268,9 @@ Available devices:
 				}
 				for i, want := range tt.want {
 					got := devices[i]
+					if want.id != "" && got.ID != want.id {
+						t.Errorf("device %d ID = %q, want %q", i, got.ID, want.id)
+					}
 					if want.name != "" && got.Name != want.name {
 						t.Errorf("device %d name = %q, want %q", i, got.Name, want.name)
 					}

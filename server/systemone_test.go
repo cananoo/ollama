@@ -160,6 +160,50 @@ func TestSystemOneHandlerRunnerSelection(t *testing.T) {
 	}
 }
 
+func TestSystemOneHandlerVLLMD3AllowsEmptyState(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	t.Setenv("OLLAMA_MODELS", t.TempDir())
+	writeShowManifestVariant(t, "decision-clef", manifest.RunnerLlamaCPP, manifest.FormatGGUF, model.ConfigV2{
+		ModelFormat: manifest.FormatGGUF, Renderer: "clef", Capabilities: []string{"decision"},
+	}, map[string]any{"general.architecture": "clef", "clef.decision.type": "clef"})
+	writeShowManifestVariant(t, "decision-vllm-d3", manifest.RunnerLlamaCPP, manifest.FormatGGUF, model.ConfigV2{
+		ModelFormat: manifest.FormatGGUF, Renderer: "clef", Capabilities: []string{"decision"},
+	}, map[string]any{"general.architecture": "vllm_d3", "vllm_d3.decision.type": "vllm-d3"})
+
+	runner := &systemOneTestRunner{}
+	s := newServerWithMockRunner(t, &runner.mockRunner)
+	s.sched.loadFn = func(req *LlmRequest, _ ml.SystemInfo, _ []ml.DeviceInfo, _ bool) bool {
+		req.successCh <- &runnerRef{llama: runner}
+		return false
+	}
+	w := createRequest(t, s.SystemOneHandler, map[string]any{
+		"model": "decision-vllm-d3", "state": "",
+		"questions": map[string]any{"choice": map[string]any{
+			"type": "noul", "instructions": "Which answer is preferred?",
+		}},
+	})
+	if w.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s, want 200", w.Code, w.Body)
+	}
+	if !runner.native || string(runner.state) != `""` {
+		t.Fatalf("native runner got state %s (native=%t), want an empty string", runner.state, runner.native)
+	}
+
+	calls := runner.calls
+	w = createRequest(t, s.SystemOneHandler, map[string]any{
+		"model": "decision-clef", "state": "",
+		"questions": map[string]any{"choice": map[string]any{
+			"type": "noul", "instructions": "Which answer is preferred?",
+		}},
+	})
+	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "state must not be empty") {
+		t.Fatalf("status=%d body=%s, want empty-state validation failure", w.Code, w.Body)
+	}
+	if runner.calls != calls {
+		t.Fatalf("runner was called for an invalid empty-state request: calls=%d, want %d", runner.calls, calls)
+	}
+}
+
 func TestSystemOneHandler(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	t.Setenv("OLLAMA_MODELS", t.TempDir())

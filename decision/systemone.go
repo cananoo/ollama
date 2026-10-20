@@ -33,14 +33,26 @@ type Compiled struct {
 
 // ValidateLimits checks request limits shared by all decision backends.
 func ValidateLimits(req Request) error {
+	return validateLimits(req, false)
+}
+
+// ValidateLimitsForDecisionType checks request limits with decision-type-specific
+// state rules. vllm-d3 can score questions without a state.
+func ValidateLimitsForDecisionType(req Request, decisionType string) error {
+	return validateLimits(req, decisionType == "vllm-d3")
+}
+
+func validateLimits(req Request, allowEmptyState bool) error {
 	if n := req.Questions.Len(); n < 1 || n > 64 {
 		return fmt.Errorf("questions must contain 1–64 fields")
 	}
 	if len(req.Videos) > 0 {
 		return fmt.Errorf("video inputs are not supported")
 	}
-	if state, err := content(req.State); err == nil && strings.TrimSpace(state) == "" && len(req.Images) == 0 {
-		return fmt.Errorf("state must not be empty")
+	if !allowEmptyState {
+		if state, err := content(req.State); err == nil && strings.TrimSpace(state) == "" && len(req.Images) == 0 {
+			return fmt.Errorf("state must not be empty")
+		}
 	}
 	for name, q := range req.Questions.All() {
 		if q.Type != "score" {

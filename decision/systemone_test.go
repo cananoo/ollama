@@ -96,6 +96,20 @@ func TestCompileUnsupportedEncoding(t *testing.T) {
 	}
 }
 
+func TestValidateLimitsForDecisionType(t *testing.T) {
+	req := testRequest(t)
+	req.State = json.RawMessage(`""`)
+	if err := ValidateLimits(req); err == nil {
+		t.Fatal("generic validation accepted an empty state")
+	}
+	if err := ValidateLimitsForDecisionType(req, "vllm-d3"); err != nil {
+		t.Fatalf("vllm-d3 validation rejected an empty state: %v", err)
+	}
+	if err := ValidateLimitsForDecisionType(req, "clef"); err == nil {
+		t.Fatal("clef validation accepted an empty state")
+	}
+}
+
 func TestStructuredStateFrames(t *testing.T) {
 	req := testRequest(t)
 	req.State = json.RawMessage(`{"frames":["first","second"],"position":7}`)
